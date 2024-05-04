@@ -25,6 +25,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         } catch (e) {
           _displayText = 'Error';
         }
+      } else if (buttonText == '%' || buttonText == '(' || buttonText == ')') {
+        // Append the bracket or percentage sign directly to the input string
+        _input += buttonText;
+        _displayText = _input;
       } else {
         // Append the pressed button value to the input string
         _input += buttonText;
@@ -34,33 +38,99 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   dynamic _calculate(String input) {
-    // Simple calculation implementation
-    // Split the input string by operators (+, -, *, /)
-    List<String> parts = input.split(RegExp(r'([\+\-\*\/])'));
-    List<String> operators = input.split(RegExp(r'[\d\.]+')).where((e) => e.isNotEmpty).toList();
-    double result = double.parse(parts[0]);
+    // Remove all whitespaces from the input
+    input = input.replaceAll(' ', '');
 
-    for (int i = 0; i < operators.length; i++) {
-      double value = double.parse(parts[i + 1]);
+    // Handle percentage operation
+    if (input.contains('%')) {
+      final parts = input.split('%');
+      if (parts.length != 2) {
+        throw FormatException('Invalid input');
+      }
+      final value = double.parse(parts[0]);
+      final percentage = value / 100;
+      return percentage;
+    }
 
-      // Perform the operation based on the operator
-      if (operators[i] == '+') {
-        result += value;
-      } else if (operators[i] == '-') {
-        result -= value;
-      } else if (operators[i] == '*') {
-        result *= value;
-      } else if (operators[i] == '/') {
-        result /= value;
+    // If the input doesn't contain '%', continue with regular calculation
+    if (input.startsWith('-')) {
+      input = '0$input'; // Add a leading zero to make it a valid expression
+    }
+
+    // Evaluate the expression using a stack-based algorithm
+    List<String> tokens = input.split('');
+    List<dynamic> values = [];
+    List<String> operators = [];
+
+    for (String token in tokens) {
+      if (token == '(') {
+        // Start of a new sub-expression
+        operators.add(token);
+      } else if (token == ')') {
+        // End of a sub-expression, evaluate it
+        while (operators.isNotEmpty && operators.last != '(') {
+          _applyOperator(values, operators.removeLast());
+        }
+        operators.removeLast(); // Remove the '(' from the stack
+      } else if (_isNumber(token)) {
+        // Token is a number, push it to the values stack
+        values.add(double.parse(token));
+      } else {
+        // Token is an operator
+        while (operators.isNotEmpty && _precedence(operators.last) >= _precedence(token)) {
+          _applyOperator(values, operators.removeLast());
+        }
+        operators.add(token);
       }
     }
 
-    return result;
+    // Evaluate the remaining operators
+    while (operators.isNotEmpty) {
+      _applyOperator(values, operators.removeLast());
+    }
+
+    // The final result is the only value left in the values stack
+    return values.first;
+  }
+
+  void _applyOperator(List<dynamic> values, String operator) {
+    dynamic right = values.removeLast();
+    dynamic left = values.removeLast();
+    switch (operator) {
+      case '+':
+        values.add(left + right);
+        break;
+      case '-':
+        values.add(left - right);
+        break;
+      case '*':
+        values.add(left * right);
+        break;
+      case '/':
+        values.add(left / right);
+        break;
+    }
+  }
+
+  bool _isNumber(String value) {
+    return double.tryParse(value) != null;
+  }
+
+  int _precedence(String operator) {
+    switch (operator) {
+      case '+':
+      case '-':
+        return 1;
+      case '*':
+      case '/':
+        return 2;
+      default:
+        return 0;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -94,7 +164,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     '0', '.', '=', '+',
                   ]),
                   ..._buildButtonRows([
-                    'C', '%',
+                    'C', '%', '(', ')',
                   ]),
                 ],
               ),
@@ -113,6 +183,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             height: MediaQuery.of(context).size.width / 5,
             child: TextButton(
               onPressed: () => _onButtonPressed(value),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all<Color>(
+                  value == '+' || value == '-' || value == '*' || value == '/' || value == '=' || value == 'C' || value == '%' || value == '(' || value == ')'
+                      ? Colors.transparent
+                      : Colors.grey[300]!,
+                ),
+                side: MaterialStateProperty.all<BorderSide>(
+                  BorderSide(
+                    color: value == '+' || value == '-' || value == '*' || value == '/' || value == '=' || value == 'C' || value == '%' || value == '(' || value == ')'
+                        ? Colors.orange
+                        : Colors.black,
+                  ),
+                ),
+              ),
               child: Text(
                 value,
                 style: const TextStyle(fontSize: 24),
