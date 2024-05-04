@@ -45,7 +45,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     if (input.contains('%')) {
       final parts = input.split('%');
       if (parts.length != 2) {
-        throw FormatException('Invalid input');
+        throw const FormatException('Invalid input');
       }
       final value = double.parse(parts[0]);
       final percentage = value / 100;
@@ -57,8 +57,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       input = '0$input'; // Add a leading zero to make it a valid expression
     }
 
+    // Regular expression pattern to match numbers and operators
+    final pattern = RegExp(r'(\d+(\.\d+)?)|([-+*/()])');
+    final matches = pattern.allMatches(input);
+
+    List<String> tokens = [];
+    for (final match in matches) {
+      tokens.add(match.group(0)!);
+    }
+
     // Evaluate the expression using a stack-based algorithm
-    List<String> tokens = input.split('');
     List<dynamic> values = [];
     List<String> operators = [];
 
@@ -161,10 +169,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     '1', '2', '3', '-',
                   ]),
                   ..._buildButtonRows([
-                    '0', '.', '=', '+',
+                    '0', '.', 'C', '+',
                   ]),
                   ..._buildButtonRows([
-                    'C', '%', '(', ')',
+                    '=', '%', '(', ')',
                   ]),
                 ],
               ),
@@ -185,31 +193,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               onPressed: () => _onButtonPressed(value),
               style: ButtonStyle(
                 backgroundColor: MaterialStateProperty.all<Color>(
-                  value == '+' || value == '-' || value == '*' || value == '/' || value == '=' || value == 'C' || value == '%' || value == '(' || value == ')'
-                      ? Colors.transparent
-                      : Colors.grey[300]!,
+                  value == '+' || value == '-' || value == '*' || value == '/' || value == '=' || value == '%' || value == '(' || value == ')'
+                      ? Colors.orange // Change color for specified buttons
+                      : value == 'C'
+                          ? Colors.green // Change color for "C" button
+                          : Colors.grey[300]!,
                 ),
                 side: MaterialStateProperty.all<BorderSide>(
-                  BorderSide(
-                    color: value == '+' || value == '-' || value == '*' || value == '/' || value == '=' || value == 'C' || value == '%' || value == '(' || value == ')'
-                        ? Colors.orange
-                        : Colors.black,
+                  const BorderSide(
+                    color: Colors.black, // Set border color to black for all buttons
                   ),
                 ),
               ),
               child: Text(
                 value,
-                style: const TextStyle(fontSize: 24),
+                style: TextStyle(
+                  fontSize: 30,
+                  color: value == 'C' ? Colors.white : null, // Change text color for "C" button
+                ),
               ),
             ),
           ),
         )
         .toList();
   }
-}
-
-void main() {
-  runApp(MaterialApp(
-    home: CalculatorScreen(),
-  ));
 }
